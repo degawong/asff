@@ -55,15 +55,15 @@ def train_process():
                         help='learning rate for Adam')
     parser.add_argument('--snapshot_interval', type=int, default=5000,
                         help='Interval of snapshot to generate image')
-    parser.add_argument('--degraded_directory', type=str, default='/home/datas/storageserver/wgq2719-data/ASFF/train/degraded_image',
+    parser.add_argument('--degraded_directory', type=str, default='train/degraded_image',
                         help='degraded image directory for train')
-    parser.add_argument('--guidance_directory', type=str, default='/home/datas/storageserver/wgq2719-data/ASFF/train/guidance_image',
+    parser.add_argument('--guidance_directory', type=str, default='train/guidance_image',
                         help='guidance image directory for train')
-    parser.add_argument('--mask_driectory', type=str, default='/home/datas/storageserver/wgq2719-data/ASFF/train/mask_image',
+    parser.add_argument('--mask_driectory', type=str, default='train/mask_image',
                         help='mask image directory for train')
-    parser.add_argument('--albedo_directory', type=str, default='/home/datas/storageserver/wgq2719-data/ASFF/train/albedo_image',
+    parser.add_argument('--albedo_directory', type=str, default='train/albedo_image',
                         help='albedo image directory for train')
-    parser.add_argument('--groundtruth_directory', type=str, default='/home/datas/storageserver/wgq2719-data/ASFF/train/groundtruth_image',
+    parser.add_argument('--groundtruth_directory', type=str, default='train/groundtruth_image',
                         help='ground truth image directory for train')
     parser.add_argument('--resume', default=None,
                         help='model state path to load for reuse')

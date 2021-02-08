@@ -61,11 +61,11 @@ def pytorch_to_onnx(network):
 
 def test_process():
     parser = argparse.ArgumentParser(description='AdaIN Style Transfer by Pytorch')
-    parser.add_argument('--degraded_directory', type=str, default='/home/datas/storageserver/wgq2719-data/ASFF/test/degraded_image',
+    parser.add_argument('--degraded_directory', type=str, default='test/degraded_image',
                         help='degraded image directory for train')
-    parser.add_argument('--guidance_directory', type=str, default='/home/datas/storageserver/wgq2719-data/ASFF/test/guidance_image',
+    parser.add_argument('--guidance_directory', type=str, default='test/guidance_image',
                         help='guidance image directory for train')
-    parser.add_argument('--mask_driectory', type=str, default='/home/datas/storageserver/wgq2719-data/ASFF/test/mask_image',
+    parser.add_argument('--mask_driectory', type=str, default='test/mask_image',
                         help='mask image directory for train')
     parser.add_argument('--gpu', '-g', type=int, default=6,
                         help='GPU ID(nagative value indicate CPU)')
