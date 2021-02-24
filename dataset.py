@@ -1,7 +1,7 @@
 '''
 Author: your name
 Date: 1970-01-01 00:00:00
-LastEditTime: 2021-01-12 02:28:51
+LastEditTime: 2021-02-19 15:24:22
 LastEditors: Please set LastEditors
 Description: In User Settings Edit
 FilePath: /ASFFNet/dataset.py
@@ -27,9 +27,9 @@ from math import floor
 import matplotlib.pyplot as plt
 from cv2 import VideoWriter, VideoWriter_fourcc, imread, imwrite, resize
 
-class Data():
+class data():
     """
-    Data
+    data
     """
     def walk_path(self, path, experession=".*\.(bmp|jpg|png|BMP|JPG|PNG)"):
         assert os.path.exists(path), "directory {} does not exist".format(path)
@@ -54,9 +54,9 @@ class Data():
             imwrite('{}/{:08d}.bmp'.format(image_directory, index), image)
         cap.release()
         
-class ASFFTest(Data, Dataset):
+class asff_test(data, Dataset):
     """
-    ASFF dataset process class
+    asff dataset process class
     """
     def __init__(self, degraded_directory, guidance_directory, mask_directory):
         degraded_package = self.walk_path(degraded_directory)
@@ -85,9 +85,9 @@ class ASFFTest(Data, Dataset):
         mask_image = self.__tensor_rgb2gray(Image.open(mask_path))
         return [degraded_image, guidance_image, mask_image, degraded_path]
 
-class ASFFDataSet(Data, Dataset):
+class asff_dataset(data, Dataset):
     """
-    ASFF dataset process class
+    asff dataset process class
     """
     def __init__(self, degraded_directory, guidance_directory, mask_directory, albedo_directory, groundtruth_directory):
         self.__transforms = transforms.Compose([

@@ -14,8 +14,8 @@ import torch
 import torchvision
 import onnxruntime as ort
 from torchvision import transforms
-from network import ASFFNet
-from dataset import Data, ASFFTest
+from network import asff_network
+from dataset import data, asff_test
 from PIL import Image, ImageOps
 import numpy as np
 
@@ -71,7 +71,7 @@ def test_process():
                         help='GPU ID(nagative value indicate CPU)')
     args = parser.parse_args()
 
-    network = ASFFNet()
+    network = asff_network()
     network.load_state_dict(torch.load(pytorch_path))
     network.eval()
     network = network.to(device)
