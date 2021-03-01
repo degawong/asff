@@ -152,14 +152,22 @@ def train_process():
             d_loss.backward()
             discriminator_optimizer.step()
 
-            writer.add_scalar('generator_loss', g_loss, global_step = e * len(degraded_image) + i)
-            writer.add_scalar('discriminator_loss', d_loss, global_step = e * len(degraded_image) + i)
+            writer.add_scalar(
+                'generator_loss',
+                g_loss,
+                global_step = e * len(degraded_image) + i
+            )
+            writer.add_scalar(
+                'discriminator_loss',
+                d_loss,
+                global_step = e * len(degraded_image) + i
+            )
             writer.add_image(
                 "generated_image",
                 torchvision.utils.make_grid(generated_image),
                 global_step = e * len(degraded_image) + i,
                 walltime = None,
-                dataformats='CHW'
+                dataformats='CHW',
             )
             writer.add_graph(
                 network,

@@ -152,8 +152,8 @@ class generator_loss(nn.Module):
         style_loss = self.__style_loss(generated_image, guidance_image)
         perceptual_loss = self.__perceptual_loss(degraded_image, generated_image)
 
-        fake_tag = torch.autograd.Variable(torch.Tensor(generated_tag.size(0), 1).fill_(0.0), requires_grad=False).to('cuda')
-        real_tag = torch.autograd.Variable(torch.Tensor(generated_tag.size(0), 1).fill_(1.0), requires_grad=False).to('cuda')
+        fake_tag = torch.autograd.Variable(torch.Tensor(generated_tag.size(0), 1).fill_(0.0), requires_grad=False).to(generated_image.device)
+        real_tag = torch.autograd.Variable(torch.Tensor(generated_tag.size(0), 1).fill_(1.0), requires_grad=False).to(generated_image.device)
 
         generated_tag[generated_tag < 0.0] = 0.0
         generated_tag[generated_tag > 1.0] = 1.0
@@ -214,8 +214,8 @@ class discriminator_loss(nn.Module):
         guidance_image = torch.mul(guidance_image, mask_image.expand_as(guidance_image))
         generated_image = torch.mul(generated_image, mask_image.expand_as(generated_image))
         
-        fake_tag = torch.autograd.Variable(torch.Tensor(tag_package[0].size(0), 1).fill_(0.0), requires_grad=False).to('cuda')
-        real_tag = torch.autograd.Variable(torch.Tensor(tag_package[0].size(0), 1).fill_(1.0), requires_grad=False).to('cuda')
+        fake_tag = torch.autograd.Variable(torch.Tensor(tag_package[0].size(0), 1).fill_(0.0), requires_grad=False).to(generated_image.device)
+        real_tag = torch.autograd.Variable(torch.Tensor(tag_package[0].size(0), 1).fill_(1.0), requires_grad=False).to(generated_image.device)
         
         tag_package[0][tag_package[0] < 0.0] = 0.0
         tag_package[0][tag_package[0] > 1.0] = 1.0
