@@ -6,6 +6,11 @@ LastEditors: Please set LastEditors
 Description: In User Settings Edit
 FilePath: /ASFFNet/train-asffnet.py
 '''
+
+"""
+TODO: use replay buffer improve train effect
+"""
+
 import os
 import argparse
 from tqdm import tqdm
@@ -47,7 +52,7 @@ def to_torch_script(network):
 
 def train_process():
     parser = argparse.ArgumentParser(description='asff network in Pytorch')
-    parser.add_argument('--batch_size', '-b', type=int, default=4,
+    parser.add_argument('--batch_size', '-b', type=int, default=1,
                         help='Number of images in each mini-batch')
     parser.add_argument('--epoch', '-e', type=int, default=50,
                         help='Number of sweeps over the dataset to train')
@@ -75,8 +80,6 @@ def train_process():
         args.degraded_directory, 
         args.guidance_directory, 
         args.mask_driectory,
-        args.albedo_directory, 
-        args.groundtruth_directory
     )
     loader = torch.utils.data.DataLoader(data, batch_size=args.batch_size, shuffle=True)
     
@@ -86,11 +89,11 @@ def train_process():
     degraded_operation = gan.degraded_operation().to(device)
     degraded_operation.train()
 
-    discriminator = gan.discriminator().to(device)
-    discriminator.train()
+    discriminator_x = gan.discriminator().to(device)
+    discriminator_x.train()
 
-    generator_loss = gan.generator_loss().to(device)
-    discriminator_loss = gan.discriminator_loss().to(device)
+    discriminator_y = gan.discriminator().to(device)
+    discriminator_y.train()
     
     if args.resume is not None:
 	    network.load_state_dict(torch.load(args.resume))
@@ -98,90 +101,158 @@ def train_process():
     generator_optimizer = optim.Adam(
         itertools.chain(
             network.parameters(),
-            generator_loss.parameters(),
             degraded_operation.parameters()
         ),
         lr=args.learning_rate, betas=(0.5, 0.999)
     )
 
-    discriminator_optimizer = optim.Adam(
+    discriminator_x_optimizer = optim.Adam(
         itertools.chain(
-            discriminator.parameters()
+            discriminator_x.parameters()
         ),
         lr=args.learning_rate, betas=(0.5, 0.999)
     )
 
+    discriminator_y_optimizer = optim.Adam(
+        itertools.chain(
+            discriminator_y.parameters()
+        ),
+        lr=args.learning_rate, betas=(0.5, 0.999)
+    )
+
+    l1_gan = torch.nn.MSELoss()
+    l1_cycle = torch.nn.L1Loss()
+    l1_identity = torch.nn.L1Loss()
+
     writer = SummaryWriter('checkpoint/log')
-
+ 
     for e in range(0, args.epoch):
-        for i, (degraded_image, guidance_image, mask_image, albedo_image, groundtruth_image) in enumerate(loader, 0):
-            
-            generated_image = network(
-                degraded_image.to(device),
-                guidance_image.to(device),
-                mask_image.to(device),
+        for i, (_up_degraded, _up_guidance, _up_mask, _down_degraded, _down_guidance, _down_mask) in enumerate(loader, 0):
+            # pixel gan
+            up_degraded = _up_degraded.to(device)
+            up_guidance = _up_guidance.to(device)
+            up_mask = _up_mask.to(device)
+            down_degraded = _down_degraded.to(device)
+            down_guidance = _down_guidance.to(device)
+            down_mask = _down_mask.to(device)
+
+            # real = torch.ones_like(up_degraded, requires_grad = False)
+            # fake = torch.zeros_like(up_degraded, requires_grad = False)
+            fake = torch.autograd.Variable(torch.Tensor(down_mask.size()).fill_(1.0), requires_grad = False).to(device)
+            real = torch.autograd.Variable(torch.Tensor(down_mask.size()).fill_(1.0), requires_grad = False).to(device)
+
+            up_generated = network(
+                up_degraded,
+                up_guidance,
+                up_mask,
+            )
+            up_recovered = degraded_operation(up_generated)
+
+            down_generated = degraded_operation(down_degraded)
+            down_recovered = network(
+                down_generated,
+                down_guidance,
+                down_mask,
             )
 
-            fake_tag = torch.autograd.Variable(torch.Tensor(degraded_image.size(0), 1).fill_(0.0), requires_grad=False)
-            real_tag = torch.autograd.Variable(torch.Tensor(degraded_image.size(0), 1).fill_(1.0), requires_grad=False)
-
-            encodered_image = degraded_operation(generated_image)
-
+            # generator
             generator_optimizer.zero_grad()
-            generated_tag = discriminator(generated_image)
-            g_loss = generator_loss(
-                degraded_image.to(device),
-                generated_image,
-                guidance_image.to(device),
-                encodered_image,
-                generated_tag,
-                mask_image.to(device)
+            ## identity loss
+            x_clone = degraded_operation(up_degraded)
+            # need or not ?
+            y_clone = network(
+                down_guidance,
+                down_guidance,
+                down_mask,
             )
-            g_loss.backward(retain_graph = True)
+            # identity_loss_x = l1_identity(up_degraded, x_clone)
+            # identity_loss_y = l1_identity(down_guidance, y_clone)
+            # identity_loss = identity_loss_x + identity_loss_y
+            identity_loss = l1_identity(up_degraded, x_clone) + l1_identity(down_guidance, y_clone)
+            ## gan loss
+            # real_y = discriminator_y(up_generated)
+            # gan_loss_y = l1_gan(real_y, real)
+            # real_x = discriminator_x(down_generated)
+            # gan_loss_x = l1_gan(real_x, real)
+            # adversarial_loss = gan_loss_x + gan_loss_y
+            adversarial_loss = l1_gan(discriminator_x(down_generated), real) + l1_gan(discriminator_y(up_generated), real)
+            ## cycle loss
+            # cycle_loss_x = l1_cycle(up_degraded, up_recovered)
+            # cycle_loss_y = l1_cycle(down_guidance, down_recovered)
+            # cycle_loss = cycle_loss_x + cycle_loss_y
+            cycle_loss = l1_cycle(up_degraded, up_recovered) + l1_cycle(down_guidance, down_recovered)
+
+            generator_loss = identity_loss + adversarial_loss + cycle_loss
+            generator_loss.backward()
+            
             generator_optimizer.step()
 
-            discriminator_optimizer.zero_grad()
-            fake = discriminator(generated_image)
-            real = discriminator(guidance_image.to(device))
-            d_loss = discriminator_loss(
-                generated_image,
-                guidance_image.to(device),
-                [fake, real],
-                mask_image.to(device)
-            )
-            d_loss.backward()
-            discriminator_optimizer.step()
+            # discriminator_x
+            discriminator_x_optimizer.zero_grad()
+            discriminator_x_loss = l1_gan(discriminator_x(up_degraded), real) + l1_gan(discriminator_x(down_generated.detach()), fake)
+            discriminator_x_loss.backward()
+            discriminator_x_optimizer.step()
+
+            # discriminator_y
+            discriminator_y_optimizer.zero_grad()
+            discriminator_y_loss = l1_gan(discriminator_y(down_guidance), real) + l1_gan(discriminator_y(up_generated.detach()), fake)
+            discriminator_y_loss.backward()
+            discriminator_y_optimizer.step()
 
             writer.add_scalar(
                 'generator_loss',
-                g_loss,
-                global_step = e * len(degraded_image) + i
+                generator_loss,
+                global_step = e * len(up_degraded) + i
             )
             writer.add_scalar(
-                'discriminator_loss',
-                d_loss,
-                global_step = e * len(degraded_image) + i
+                'discriminator_x_loss',
+                discriminator_x_loss,
+                global_step = e * len(up_degraded) + i
+            )
+            writer.add_scalar(
+                'discriminator_y_loss',
+                discriminator_y_loss,
+                global_step = e * len(up_degraded) + i
+            )
+            writer.add_scalar(
+                'loss',
+                generator_loss + discriminator_x_loss + discriminator_y_loss,
+                global_step = e * len(up_degraded) + i
             )
             writer.add_image(
-                "generated_image",
-                torchvision.utils.make_grid(generated_image),
-                global_step = e * len(degraded_image) + i,
+                "up_generated",
+                torchvision.utils.make_grid(torch.cat((up_degraded, up_generated, up_recovered))),
+                global_step = e * len(up_degraded) + i,
                 walltime = None,
                 dataformats='CHW',
             )
-            writer.add_graph(
-                network,
-                input_to_model = (
-                    degraded_image.to(device),
-                    guidance_image.to(device),
-                    mask_image.to(device), 
-                ),
-                verbose = False,
+            writer.add_image(
+                "down_generated",
+                torchvision.utils.make_grid(torch.cat((down_guidance, down_generated, down_recovered))),
+                global_step = e * len(up_degraded) + i,
+                walltime = None,
+                dataformats='CHW',
             )
-
+            # writer.add_graph(
+                # network,
+                # input_to_model = (
+                    # up_degraded,
+                    # up_guidance,
+                    # up_mask, 
+                # ),
+                # verbose = False,
+            # )
+            # writer.add_graph(
+                # degraded_operation,
+                # input_to_model = (
+                    # up_generated,
+                # ),
+                # verbose = False,
+            # )
             if i % args.snapshot_interval == 0:
-                torchvision.utils.save_image(generated_image, "./checkpoint/image/{:03d}_{:05d}.png".format(e, i))    
-            print("epoch : {}; iteration {:08d}; g_loss : {:f}; d_loss : {:f}".format(e, i, g_loss.item(), d_loss.item()))
+                torchvision.utils.save_image(torch.cat((up_degraded, up_generated, up_recovered)), "./checkpoint/image/{:03d}_{:05d}_up.png".format(e, i))
+                torchvision.utils.save_image(torch.cat((down_guidance, down_generated, down_recovered)), "./checkpoint/image/{:03d}_{:05d}_down.png".format(e, i))
+            print("epoch : {}; iteration {:08d}; g_loss : {:f}; x_loss : {:f}; y_loss : {:f}".format(e, i, generator_loss.item(), discriminator_x_loss.item(), discriminator_y_loss.item()))
         torch.save(network.state_dict(), './checkpoint/model/{:03d}_epoch.pth'.format(e))
 
 if __name__ == "__main__":

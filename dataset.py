@@ -16,9 +16,9 @@ from torchvision import transforms
 from skimage import io, transform
 from PIL import Image, ImageOps
 
-import os
 import re
 import cv2
+import random
 import imageio
 import numpy as np
 import scipy as sp
@@ -89,29 +89,33 @@ class asff_dataset(data, Dataset):
     """
     asff dataset process class
     """
-    def __init__(self, degraded_directory, guidance_directory, mask_directory, albedo_directory, groundtruth_directory):
+    def __init__(self, degraded_directory, guidance_directory, mask_directory):
         self.__transforms = transforms.Compose([
                                 transforms.ToTensor()
                             ])
         degraded_package = self.walk_path(degraded_directory)
         guidance_package = self.walk_path(guidance_directory)
         mask_package = self.walk_path(mask_directory)
-        albedo_package = self.walk_path(albedo_directory)
-        groundtruth_package = self.walk_path(groundtruth_directory)
-        self.__list = list(zip(degraded_package, guidance_package, mask_package, albedo_package, groundtruth_package))
-        np.random.shuffle(self.__list)
+        self.__list = list(zip(degraded_package, guidance_package, mask_package))
+        # np.random.shuffle(self.__list)
 
     def __len__(self):
         return len(self.__list)
 
     def __getitem__(self, index):
-        [degraded_path, guidance_path, mask_path, albedo_path, groundtruth_path] = self.__list[index]        
-        degraded_image = self.__transforms(Image.open(degraded_path))
-        guidance_image = self.__transforms(Image.open(guidance_path))
-        mask_image = self.__transforms(Image.open(mask_path))
-        albedo_image = self.__transforms(Image.open(albedo_path))
-        groundtruth_image = self.__transforms(Image.open(groundtruth_path))
-        return [degraded_image, guidance_image, mask_image, albedo_image, groundtruth_image]
+        up_index = index
+        [up_degraded_path, up_guidance_path, up_mask_path] = self.__list[up_index]
+        up_degraded = self.__transforms(Image.open(up_degraded_path))
+        up_guidance = self.__transforms(Image.open(up_guidance_path))
+        up_mask = self.__transforms(Image.open(up_mask_path))
+        
+        down_index = random.randint(0, len(self.__list) - 1)
+        [down_degraded_path, down_guidance_path, down_mask_path] = self.__list[down_index]
+        down_degraded = self.__transforms(Image.open(down_degraded_path))
+        down_guidance = self.__transforms(Image.open(down_guidance_path))
+        down_mask = self.__transforms(Image.open(down_mask_path))
+
+        return [up_degraded, up_guidance, up_mask, down_degraded, down_guidance, down_mask]
 
 class Draw():
     """Some Information about Draw"""

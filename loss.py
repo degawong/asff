@@ -193,13 +193,29 @@ class discriminator(nn.Module):
                 ]
             )
         )
-        # self.__linear = nn.Linear(64, 1)
+        self.__pixel_discriminator = nn.Sequential(
+            collections.OrderedDict(
+                [
+                    ('discriminator_operation-00', nn.Conv2d(3, 8, 3, 1, 1, bias=True)),
+                    ('discriminator_operation-03', nn.LeakyReLU(0.2, inplace=True)),
+                    ('discriminator_operation-04', nn.Conv2d(8, 16, 3, 1, 1, bias=True)),
+                    ('discriminator_operation-05', nn.LeakyReLU(0.2, inplace=True)),
+                    ('discriminator_operation-08', nn.Conv2d(16, 32, 3, 1, 1, bias=True)),
+                    ('discriminator_operation-09', nn.LeakyReLU(0.2, inplace=True)),
+                    ('discriminator_operation-12', nn.Conv2d(32, 64, 3, 1, 1, bias=True)),
+                    ('discriminator_operation-13', nn.LeakyReLU(0.2, inplace=True)),
+                    ('discriminator_operation-14', nn.Conv2d(64, 1, 3, 1, 1, bias=True)),
+                    ('discriminator_operation-15', nn.Sigmoid()),
+                ]
+            )
+        )
+        self.__operation = self.__pixel_discriminator
 
     def forward(self, image):
         # output = self.__discriminator_operation(image)
         # output = output.view(output.size(0), -1)
         # return self.__linear(output)
-        return self.__discriminator_operation(image)
+        return self.__operation(image)
 
 class discriminator_loss(nn.Module):
     """
